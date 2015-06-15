@@ -1,4 +1,4 @@
-# Panubo Deploy
+# Panubo Fleet Deploy
 
 A Python CLI tool to facilitate Fleet unit deployments.
 
