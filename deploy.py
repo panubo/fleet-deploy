@@ -131,17 +131,17 @@ class SpawnDeployment(SimpleDeployment):
 
 
 @click.command()
-@click.option('--fleet-uri', default='http+unix://%2Fvar%2Frun%2Ffleet.sock', help="Fleet URI / socket", envvar='FLEET_URI')
+@click.option('--fleet-endpoint', default='http+unix://%2Fvar%2Frun%2Ffleet.sock', help="Fleet URI / socket", envvar='FLEETCTL_ENDPOINT')
 @click.option('--name', required=True, help="Name of service to deploy")
 @click.option('--method', default='simple', type=click.Choice(['simple', 'fiftyfifty', 'spawn']), help="Deployment method")
-def main(fleet_uri, name, method):
+def main(fleet_endpoint, name, method):
     """Main function"""
     deployment_method_map = {
         'simple': SimpleDeployment,
         'fiftyfifty':  FiftyFiftyDeployment,
         'spawn': SpawnDeployment,
     }
-    connection = FleetConnection(fleet_uri)
+    connection = FleetConnection(fleet_endpoint)
     method_obj = deployment_method_map[method]
     deployment = method_obj(connection, name)
     deployment.run()
