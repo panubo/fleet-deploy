@@ -11,8 +11,16 @@ Usage: deploy.py [OPTIONS]
 Options:
   --fleet-endpoint TEXT           Fleet URI / socket
   --name TEXT                     Name of service to deploy  [required]
-  --method [simple|fiftyfifty|spawn]
+  --tag TEXT                      Tag label. eg Git tag
+  --method [stopstart|rolling|atomic]
                                   Deployment method
+  --instances INTEGER             Desired number of instances
+  --unit-file FILENAME            Unit template file
+  --chunk INTEGER                 Number or percentage of containers to act on
+                                  each pass. Eg 2
+  --chunk-percent INTEGER         Percentage of containers to act on each
+                                  pass. Eg 50
+  --delay INTEGER                 Startup delay
   --help                          Show this message and exit.
 ```
 
@@ -20,9 +28,35 @@ Options:
 
 The following deployment methods are supported:
 
-- Simple - Simple Deployment: just stop and start all units
-- FiftyFifty - stop and restart half, then the other half
-- Spawn (not yet implemented)
+- Stop Start - Simple Deployment: just stop and start all units in one go
+- Rolling Stop-Start - Start and Stop units in succession by chunking quantity
+- Atomic Switch - (not yet implemented)
+
+
+## Example
+
+```
+$ ./deploy.py --name docs --method rolling --chunk-percent 50
+*** Rolling Deployment Plan ***
+==> Details
+Found unit: docs-a.service (launched).
+Found unit: docs-b.service (launched).
+Chunking: 1 units
+==> Steps
+Step 1: stop docs-a.service
+Step 2: start docs-a.service
+Step 3: stop docs-b.service
+Step 4: start docs-b.service
+==> Run
+Starting in 5 seconds... 5 4 3 2 1... Starting.
+==> Executing
+Stopping docs-a.service.....Done.
+Starting docs-a.service..................Done.
+Stopping docs-b.service.....Done.
+Starting docs-b.service.................Done.
+Finished.
+
+```
 
 ## Status
 
