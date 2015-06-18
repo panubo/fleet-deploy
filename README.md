@@ -2,6 +2,14 @@
 
 A Python CLI tool to facilitate Fleet unit deployments.
 
+## Deployment Methods
+
+The following deployment methods are supported:
+
+- Stop Start - Simple: just stop and start all units in one go
+- Rolling Stop-Start - Start and stop units in succession by chunking quantity
+- Atomic Switchover - (not yet implemented)
+
 ## Usage
 ```
 Usage: deploy.py [OPTIONS]
@@ -23,15 +31,6 @@ Options:
   --delay INTEGER                 Startup delay
   --help                          Show this message and exit.
 ```
-
-## Methods
-
-The following deployment methods are supported:
-
-- Stop Start - Simple Deployment: just stop and start all units in one go
-- Rolling Stop-Start - Start and Stop units in succession by chunking quantity
-- Atomic Switch - (not yet implemented)
-
 
 ## Example
 
