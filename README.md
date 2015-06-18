@@ -11,6 +11,7 @@ The following deployment methods are supported:
 - Atomic Switchover - (not yet implemented)
 
 ## Usage
+
 ```
 Usage: deploy.py [OPTIONS]
 
@@ -24,9 +25,9 @@ Options:
                                   Deployment method
   --instances INTEGER             Desired number of instances
   --unit-file FILENAME            Unit template file
-  --chunk INTEGER                 Number of containers to act on each pass. Eg
+  --chunking INTEGER              Number of containers to act on each pass. Eg
                                   2
-  --chunk-percent INTEGER         Percentage of containers to act on each
+  --chunking-percent INTEGER      Percentage of containers to act on each
                                   pass. Eg 50
   --delay INTEGER                 Startup delay
   --help                          Show this message and exit.
@@ -35,7 +36,7 @@ Options:
 ## Example
 
 ```
-$ ./deploy.py --name docs --method rolling --chunk-percent 50
+$ ./deploy.py --name docs --method rolling --chunking-percent 50
 *** Rolling Deployment Plan ***
 ==> Details
 Found unit: docs-a.service (launched).
@@ -54,9 +55,14 @@ Starting docs-a.service..................Done.
 Stopping docs-b.service.....Done.
 Starting docs-b.service.................Done.
 Finished.
-
 ```
+
+## TODO
+
+- Add wait timeouts for Fleet operations 
+- Exception handling
+- Test coverage
 
 ## Status
 
-Under active development. Alpha status.
+Under active development. Consider it Alpha status.
