@@ -24,8 +24,8 @@ Options:
                                   Deployment method
   --instances INTEGER             Desired number of instances
   --unit-file FILENAME            Unit template file
-  --chunk INTEGER                 Number or percentage of containers to act on
-                                  each pass. Eg 2
+  --chunk INTEGER                 Number of containers to act on each pass. Eg
+                                  2
   --chunk-percent INTEGER         Percentage of containers to act on each
                                   pass. Eg 50
   --delay INTEGER                 Startup delay

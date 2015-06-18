@@ -214,7 +214,7 @@ class AtomicRollingDeployment(RollingDeployment):
 @click.option('--method', default='stopstart', type=click.Choice(['stopstart', 'rolling', 'atomic']), help="Deployment method")
 @click.option('--instances', type=click.INT, help="Desired number of instances")
 @click.option('--unit-file', type=click.File(), help="Unit template file")
-@click.option('--chunk', type=click.INT, help="Number or percentage of containers to act on each pass. Eg 2")
+@click.option('--chunk', type=click.INT, help="Number of containers to act on each pass. Eg 2")
 @click.option('--chunk-percent', type=click.INT, help="Percentage of containers to act on each pass. Eg 50")
 @click.option('--delay', default=5, type=click.INT, help="Startup delay")
 def main(fleet_endpoint, name, tag, method, instances, unit_file, chunk, chunk_percent, delay):
