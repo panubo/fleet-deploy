@@ -2,14 +2,13 @@
 
 [![Build Status](https://travis-ci.org/panubo/fleet-deploy.svg?branch=master)](https://travis-ci.org/panubo/fleet-deploy)
 
-
-A Python CLI tool to facilitate Fleet unit deployments.
+A CLI tool to facilitate Fleet unit deployments.
 
 ## Deployment Methods
 
 The following deployment methods are supported:
 
-- Stop Start - Simple: just stop and start all units in one go
+- Simple Stop-Start: just stop and start all units in one go
 - Rolling Stop-Start - Start and stop units in succession by chunking quantity
 - Atomic Switchover - (not yet implemented)
 
