@@ -5,7 +5,13 @@ import math
 
 import click
 import fleet.v1 as fleet
-from httplib import ResponseNotReady
+
+try:
+    # For Python 3.0 and later
+    from http.client import ResponseNotReady
+except ImportError:
+    # Fall back to Python 2
+    from httplib import ResponseNotReady
 
 FLEET_ENDPOINT_DEFAULT = 'http+unix://%2Fvar%2Frun%2Ffleet.sock'
 
