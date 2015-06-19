@@ -9,8 +9,9 @@ A CLI tool to facilitate Fleet unit deployments.
 The following deployment methods are supported:
 
 - Simple Stop-Start: just stop and start all units in one go
-- Rolling Stop-Start - Start and stop units in succession by chunking quantity
-- Atomic Switchover - (not yet implemented)
+- Rolling Stop-Start: Start and stop units in succession by chunking quantity
+- Atomic Switchover: Spawn new units, execute atomic-handler script, then destroy the old units. The atomic-handler
+is responsible for service discovery updates to make the deployment seamless.
 
 ## Usage
 
@@ -27,6 +28,7 @@ Options:
                                   Deployment method
   --instances INTEGER             Desired number of instances
   --unit-file FILENAME            Unit template file
+  --atomic-handler PATH           Program to handle atomic operations
   --chunking INTEGER              Number of containers to act on each pass. Eg
                                   2
   --chunking-percent INTEGER      Percentage of containers to act on each
