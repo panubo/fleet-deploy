@@ -2,9 +2,11 @@
 
 from time import sleep
 import math
+from subprocess import Popen, PIPE
 
 import click
 import fleet.v1 as fleet
+from ordered_set import OrderedSet
 
 try:
     # For Python 3.0 and later
@@ -29,19 +31,22 @@ class FleetConnection(object):
 class Instance(object):
     """ Unit Instance """
 
-    def __init__(self, name, state, intended_action='redeploy'):
+    def __init__(self, name, state, required_action='redeploy'):
         self.name = name
         self.state = state
-        self.intended_action = intended_action
+        self.required_action = required_action
 
         if state not in ('inactive', 'launched', 'uncreated'):
             raise Exception('Invalid state')
 
-        if intended_action not in ('redeploy', 'spawn', 'destroy'):
-            raise Exception('Invalid intended_action')
+        if required_action not in ('redeploy', 'spawn', 'destroy'):
+            raise Exception('Invalid required_action')
 
     def __str__(self):
         return self.name
+
+    def __repr__(self):
+        return "'%s'" % self.name
 
     @property
     def details(self):
@@ -55,23 +60,33 @@ class Step(object):
         self.name = name
         self.action = action
 
-        if action not in ('start', 'stop', 'spawn', 'destroy'):
+        if action not in ('start', 'stop', 'spawn', 'destroy', 'external_script'):
             raise Exception('Invalid action')
 
     def __str__(self):
         return "%s %s" % (self.action, self.name)
 
+    def __repr__(self):
+        return "'%s'" % self.name
+
 
 class Plan(object):
     """ Collection of deployment steps and execution methods """
 
-    def __init__(self, fleet_client, steps, unit_template):
+    def __init__(self, fleet_client, unit_template):
         self.fleet = fleet_client
-        self.steps = steps
         self.unit_template = unit_template
+        self.steps = OrderedSet()
 
     def __str__(self):
         return "Plan %s" % len(self.steps)
+
+    def get_by_action(self, action):
+        result = list()
+        for step in self.steps:
+            if step.action == action:
+                result.append(step)
+        return result
 
     def run(self):
         click.echo("==> Executing")
@@ -125,6 +140,26 @@ class Plan(object):
             self.fleet.destroy_unit(step.name)
             click.echo("Done.")
 
+        if step.action == 'external_script':
+            click.echo("Executing %s with data: " % step.name, nl=False)
+            data = self.get_external_script_payload()
+            click.echo(data)
+            self.execute_external_script(step.name, data)
+
+    @staticmethod
+    def execute_external_script(script, data):
+        # run the script as a subprocess:
+        p = Popen([script], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=False)
+        # pass the data
+        p.stdin.write(str(data))
+        p.stdin.close()
+
+    def get_external_script_payload(self):
+        return {
+            'add': self.get_by_action('spawn'),
+            'remove': self.get_by_action('destroy')
+        }
+
 
 class BaseDeployment(object):
 
@@ -132,17 +167,17 @@ class BaseDeployment(object):
 
     def __init__(self, fleet_client, service_name, tag):
 
-        self.plan = object()
-        self.units = list()
-        self.chunking_count = 1
-        self.unit_template = None
-
         self.fleet = fleet_client
         self.service_name = service_name
         self.tag = tag
 
+        self.plans = list() # Plan(fleet_client=fleet_client, unit_template=None)
+        self.units = OrderedSet()
+        self.chunking_count = 1  # default
+        self.unit_template = None
+
     def load(self, instances):
-        """ Run logic and API calls to setup """
+        """ Run logic and API calls to setup Units """
         # find relevant units that exist in the cluster
         for u in self.fleet.list_units():
             if u['name'].startswith(self.service_name + '-'):
@@ -159,16 +194,17 @@ class BaseDeployment(object):
         # mark excess units for destruction
         i = 0
         while i > self.unit_count_difference:
-            self.units[i].intended_action = 'destroy'
+            self.units[i].required_action = 'destroy'
             i -= 1
 
         # define the creation of new units here
         i = 0
         spawn = list()
         while i < self.unit_count_difference:
-            spawn.append(Instance(self.get_service_name(self.current_unit_count+i+1), 'uncreated', 'spawn'))
             i += 1
-        self.units.extend(spawn)
+            spawn.append(Instance(self.get_service_name(self.current_unit_count+i), 'uncreated', 'spawn'))
+        for s in spawn:
+            self.units.append(s)
 
         if self.current_unit_count == 0:
             raise Exception('No units found')
@@ -200,34 +236,34 @@ class BaseDeployment(object):
     def unit_count_difference(self):
         return self.desired_units - self.current_unit_count
 
-    def create_plan(self):
-        steps = list()
+    def create_plans(self):
         i = 0
         while i < self.current_unit_count:
+            plan = Plan(self.fleet, self.unit_template)
             from_idx = i
             to_idx = i + self.chunking_count
             if to_idx > self.current_unit_count:
                 to_idx = self.current_unit_count
 
             for unit in self.units[from_idx:to_idx]:
-                if unit.intended_action == 'spawn':
-                    steps.insert(0, Step(unit.name, 'spawn'))
-                if unit.intended_action == 'redeploy':
-                    steps.append(Step(unit.name, 'stop'))
+                if unit.required_action == 'spawn':
+                    plan.steps.append(Step(unit.name, 'spawn'))
+                if unit.required_action == 'redeploy':
+                    plan.steps.append(Step(unit.name, 'stop'))
             for unit in self.units[from_idx:to_idx]:
-                if unit.intended_action == 'redeploy':
-                    steps.append(Step(unit.name, 'start'))
-                if unit.intended_action == 'destroy':
-                    steps.append(Step(unit.name, 'destroy'))
+                if unit.required_action == 'redeploy':
+                    plan.steps.append(Step(unit.name, 'start'))
+                if unit.required_action == 'destroy':
+                    plan.steps.append(Step(unit.name, 'destroy'))
             i = to_idx
-        self.plan = Plan(self.fleet, steps, self.unit_template)
+            self.plans.append(plan)
 
-    def describe_plan(self):
-        # let us know what will be done, if anything
-        if self.unit_count_difference > 0:
-            click.echo("Insufficient units found. %s will be spawned." % self.unit_count_difference)
-        if self.unit_count_difference < 0:
-            click.echo("Excess units found. %s will be destroyed." % abs(self.unit_count_difference))
+    def describe_plans(self):
+        # # let us know what will be done, if anything
+        # if self.unit_count_difference > 0:
+        #     click.echo("Insufficient units found. %s will be spawned." % self.unit_count_difference)
+        # if self.unit_count_difference < 0:
+        #     click.echo("Excess units found. %s will be destroyed." % abs(self.unit_count_difference))
 
         click.echo("*** %s Deployment Plan ***" % self.name)
 
@@ -236,14 +272,19 @@ class BaseDeployment(object):
             click.echo("Unit: %s (%s)." % (u.name, u.state))
         click.echo("Chunking: %s units" % self.chunking_count)
 
-        click.echo("==> Steps")
-        i = 0
-        for step in self.plan.steps:
-            i += 1
-            click.echo("Step %s: %s" % (i, step))
+        click.echo("==> Deployment Plan")
+        stage_idx = 1
+        step_idx = 1
+        for plan in self.plans:
+            click.echo("==> Stage %s" % stage_idx)
+            stage_idx += 1
+            for step in plan.steps:
+                click.echo("Step %s: %s" % (step_idx, step))
+                step_idx += 1
 
-    def run_plan(self):
-        self.plan.run()
+    def run_plans(self):
+        for plan in self.plans:
+            plan.run()
         click.echo("Finished.")
 
     def load_unit_template(self):
@@ -277,10 +318,42 @@ class AtomicRollingDeployment(BaseDeployment):
 
     name = 'Atomic'
 
-    # configurable by number of containers or %age.
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError('Atomic deployment not yet implemented')
-        super(SimpleDeployment, self).__init__(*args, **kwargs)
+    def __init__(self, atomic_handler, *args, **kwargs):
+        super(AtomicRollingDeployment, self).__init__(*args, **kwargs)
+        self.handler = atomic_handler
+        if atomic_handler is None:
+            raise Exception('atomic_handler must be set')
+
+    def generate_steps(self, from_idx, to_idx):
+        steps = list()
+        idx = from_idx + 1
+        for unit in self.units[from_idx:to_idx]:
+            if unit.required_action in ('spawn', 'redeploy'):
+                name = self.get_service_name(idx)
+                steps.append(Step(name, 'spawn'))
+            idx += 1
+
+        # Do atomic script here
+        steps.append(Step(self.handler, 'external_script'))
+
+        for unit in self.units[from_idx:to_idx]:
+            if unit.required_action in ('destroy', 'redeploy'):
+                steps.append(Step(unit.name, 'destroy'))
+        return steps
+
+    def create_plans(self):
+
+        i = 0
+        while i < self.current_unit_count:
+            plan = Plan(self.fleet, self.unit_template)
+            from_idx = i
+            to_idx = i + self.chunking_count
+            if to_idx > self.current_unit_count:
+                to_idx = self.current_unit_count
+            for step in self.generate_steps(from_idx, to_idx):
+                plan.steps.append(step)
+            i = to_idx
+            self.plans.append(plan)
 
 
 @click.command()
@@ -290,10 +363,11 @@ class AtomicRollingDeployment(BaseDeployment):
 @click.option('--method', default='stopstart', type=click.Choice(['stopstart', 'rolling', 'atomic']), help="Deployment method")
 @click.option('--instances', type=click.INT, help="Desired number of instances")
 @click.option('--unit-file', type=click.File(), help="Unit template file")
+@click.option('--atomic-handler', type=click.Path(exists=True), help="Program to handle atomic operations")
 @click.option('--chunking', type=click.INT, help="Number of containers to act on each pass. Eg 2")
 @click.option('--chunking-percent', type=click.INT, help="Percentage of containers to act on each pass. Eg 50")
 @click.option('--delay', default=5, type=click.INT, help="Startup delay")
-def main(fleet_endpoint, name, tag, method, instances, unit_file, chunking, chunking_percent, delay):
+def main(fleet_endpoint, name, tag, method, instances, unit_file, atomic_handler, chunking, chunking_percent, delay):
     """Main function"""
 
     # Validation
@@ -302,6 +376,10 @@ def main(fleet_endpoint, name, tag, method, instances, unit_file, chunking, chun
 
     if chunking_percent is not None and not 0 <= chunking_percent <= 100:
         raise click.UsageError('Invalid --chunking-percent. Valid values 0 - 100.')
+
+    # atomic validation
+    if method != 'atomic' and atomic_handler is not None:
+        raise click.UsageError('--atomic-handler is only valid for atomic deployment')
 
     # stopstart validation
     if method == 'stopstart' and unit_file is not None:
@@ -326,15 +404,18 @@ def main(fleet_endpoint, name, tag, method, instances, unit_file, chunking, chun
     }
     connection = FleetConnection(fleet_endpoint)
     method_obj = deployment_map[method]
-    deployment = method_obj(connection, name, tag)
+    if method == 'atomic':
+        deployment = method_obj(atomic_handler, connection, name, tag)
+    else:
+        deployment = method_obj(connection, name, tag)
     deployment.load(instances)
     if unit_file is None:
         deployment.load_unit_template()
     else:
         deployment.set_unit_template(unit_file.read())
     deployment.update_chunking(chunking, chunking_percent)
-    deployment.create_plan()
-    deployment.describe_plan()  # Print planned execution
+    deployment.create_plans()
+    deployment.describe_plans()  # Print planned execution
 
     # Give chance to abort
     click.echo("==> Run")
@@ -343,7 +424,7 @@ def main(fleet_endpoint, name, tag, method, instances, unit_file, chunking, chun
         sleep(1)
         click.echo(' %s' % (delay-i), nl=False)
     click.echo('... Starting.')
-    deployment.run_plan()
+    deployment.run_plans()
 
 if __name__ == '__main__':
     main()

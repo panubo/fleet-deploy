@@ -11,7 +11,7 @@ class TestInstance(unittest.TestCase):
         self.assertEqual(i.__str__(), 'foo')
         self.assertEqual(i.name, 'foo')
         self.assertEqual(i.state, 'inactive')
-        self.assertEqual(i.intended_action, 'spawn')
+        self.assertEqual(i.required_action, 'spawn')
         self.assertEqual(i.details, 'foo inactive')
 
     def test_invalid_state(self):
