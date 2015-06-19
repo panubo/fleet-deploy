@@ -222,15 +222,6 @@ class BaseDeployment(object):
             i = to_idx
         self.plan = Plan(self.fleet, steps, self.unit_template)
 
-    def load_unit_template(self):
-        # load service template from fleet
-        self.unit_template = self.fleet.get_unit("%s@.service" % self.service_name)
-        return self.unit_template
-
-    def set_unit_template(self, template):
-        self.unit_template = template
-        return self.unit_template
-
     def describe_plan(self):
         # let us know what will be done, if anything
         if self.unit_count_difference > 0:
@@ -251,9 +242,18 @@ class BaseDeployment(object):
             i += 1
             click.echo("Step %s: %s" % (i, step))
 
-    def run(self):
+    def run_plan(self):
         self.plan.run()
         click.echo("Finished.")
+
+    def load_unit_template(self):
+        # load service template from fleet
+        self.unit_template = self.fleet.get_unit("%s@.service" % self.service_name)
+        return self.unit_template
+
+    def set_unit_template(self, template):
+        self.unit_template = template
+        return self.unit_template
 
 
 class SimpleDeployment(BaseDeployment):
@@ -343,7 +343,7 @@ def main(fleet_endpoint, name, tag, method, instances, unit_file, chunking, chun
         sleep(1)
         click.echo(' %s' % (delay-i), nl=False)
     click.echo('... Starting.')
-    deployment.run()
+    deployment.run_plan()
 
 if __name__ == '__main__':
     main()
