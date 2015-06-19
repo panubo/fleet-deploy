@@ -5,6 +5,9 @@ import math
 
 import click
 import fleet.v1 as fleet
+from httplib import ResponseNotReady
+
+FLEET_ENDPOINT_DEFAULT = 'http+unix://%2Fvar%2Frun%2Ffleet.sock'
 
 
 class FleetConnection(object):
@@ -13,9 +16,8 @@ class FleetConnection(object):
     def __new__(cls, fleet_uri):
         try:
             return fleet.Client(fleet_uri)
-        except ValueError as e:
-            print('Unable to connect to Fleet: {0}'.format(e))
-            raise SystemExit
+        except (ValueError, ResponseNotReady) as e:
+            raise SystemExit('Unable to connect to Fleet: {0}'.format(e))
 
 
 class Instance(object):
@@ -23,8 +25,14 @@ class Instance(object):
 
     def __init__(self, name, state, intended_action='redeploy'):
         self.name = name
-        self.state = state  # inactive, launched, uncreated
-        self.intended_action = intended_action  # redeploy, create, destroy
+        self.state = state
+        self.intended_action = intended_action
+
+        if state not in ('inactive', 'launched', 'uncreated'):
+            raise Exception('Invalid state')
+
+        if intended_action not in ('redeploy', 'spawn', 'destroy'):
+            raise Exception('Invalid intended_action')
 
     def __str__(self):
         return self.name
@@ -37,9 +45,9 @@ class Instance(object):
 class Step(object):
     """ Single Step in a Deployment Plan """
 
-    def __init__(self, action, name):
-        self.action = action
+    def __init__(self, name, action):
         self.name = name
+        self.action = action
 
         if action not in ('start', 'stop', 'spawn', 'destroy'):
             raise Exception('Invalid action')
@@ -115,21 +123,24 @@ class Plan(object):
 class BaseDeployment(object):
 
     name = 'Base Deployment'
-    plan = object()
-    units = list()
-    chunking_count = 1
-    unit_template = None
 
-    def __init__(self, fleet_client, service_name, tag, instances):
+    def __init__(self, fleet_client, service_name, tag):
+
+        self.plan = object()
+        self.units = list()
+        self.chunking_count = 1
+        self.unit_template = None
 
         self.fleet = fleet_client
         self.service_name = service_name
         self.tag = tag
 
+    def load(self, instances):
+        """ Run logic and API calls to setup """
         # find relevant units that exist in the cluster
         for u in self.fleet.list_units():
-            if u['name'].startswith(service_name + '-'):
-                if u['name'] != "%s@.service" % service_name:  # Exclude service templates
+            if u['name'].startswith(self.service_name + '-'):
+                if u['name'] != "%s@.service" % self.service_name:  # Exclude service templates
                     unit = Instance(u['name'], u['currentState'])
                     self.units.append(unit)
 
@@ -194,14 +205,14 @@ class BaseDeployment(object):
 
             for unit in self.units[from_idx:to_idx]:
                 if unit.intended_action == 'spawn':
-                    steps.insert(0, Step('spawn', unit.name))
+                    steps.insert(0, Step(unit.name, 'spawn'))
                 if unit.intended_action == 'redeploy':
-                    steps.append(Step('stop', unit.name))
+                    steps.append(Step(unit.name, 'stop'))
             for unit in self.units[from_idx:to_idx]:
                 if unit.intended_action == 'redeploy':
-                    steps.append(Step('start', unit.name))
+                    steps.append(Step(unit.name, 'start'))
                 if unit.intended_action == 'destroy':
-                    steps.append(Step('destroy', unit.name))
+                    steps.append(Step(unit.name, 'destroy'))
             i = to_idx
         self.plan = Plan(self.fleet, steps, self.unit_template)
 
@@ -267,7 +278,7 @@ class AtomicRollingDeployment(BaseDeployment):
 
 
 @click.command()
-@click.option('--fleet-endpoint', default='http+unix://%2Fvar%2Frun%2Ffleet.sock', help="Fleet URI / socket", envvar='FLEETCTL_ENDPOINT')
+@click.option('--fleet-endpoint', default=FLEET_ENDPOINT_DEFAULT, help="Fleet URI / socket", envvar='FLEETCTL_ENDPOINT')
 @click.option('--name', required=True, help="Name of service to deploy")
 @click.option('--tag', required=False, type=click.STRING, help="Tag label. eg Git tag")
 @click.option('--method', default='stopstart', type=click.Choice(['stopstart', 'rolling', 'atomic']), help="Deployment method")
@@ -309,7 +320,8 @@ def main(fleet_endpoint, name, tag, method, instances, unit_file, chunking, chun
     }
     connection = FleetConnection(fleet_endpoint)
     method_obj = deployment_map[method]
-    deployment = method_obj(connection, name, tag, instances)
+    deployment = method_obj(connection, name, tag)
+    deployment.load(instances)
     if unit_file is None:
         deployment.load_unit_template()
     else:
