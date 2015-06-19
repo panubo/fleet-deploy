@@ -1,5 +1,8 @@
 # Panubo Fleet Deploy
 
+[![Build Status](https://travis-ci.org/panubo/fleet-deploy.svg?branch=master)](https://travis-ci.org/panubo/fleet-deploy)
+
+
 A Python CLI tool to facilitate Fleet unit deployments.
 
 ## Deployment Methods
