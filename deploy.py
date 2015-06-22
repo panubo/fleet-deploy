@@ -2,6 +2,7 @@
 
 from time import sleep
 import math
+import os
 import json
 from subprocess import Popen, PIPE
 
@@ -150,7 +151,8 @@ class Plan(object):
     @staticmethod
     def execute_external_script(script, data):
         # run the script as a subprocess:
-        p = Popen([script], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=False)
+        cwd = os.path.dirname(os.path.realpath(__file__))
+        p = Popen([script], cwd=cwd, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=False)
         # pass the data
         p.stdin.write(str(data))
         p.stdin.close()
