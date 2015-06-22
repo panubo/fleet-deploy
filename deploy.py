@@ -69,7 +69,7 @@ class Step(object):
         return "%s %s" % (self.action, self.name)
 
     def __repr__(self):
-        return "'%s'" % self.name
+        return "%s" % self.name
 
 
 class Plan(object):
@@ -82,13 +82,6 @@ class Plan(object):
 
     def __str__(self):
         return "Plan %s" % len(self.steps)
-
-    def get_by_action(self, action):
-        result = list()
-        for step in self.steps:
-            if step.action == action:
-                result.append(step)
-        return result
 
     def run(self):
         click.echo("==> Executing")
@@ -158,9 +151,17 @@ class Plan(object):
         p.stdin.close()
 
     def get_external_script_payload(self):
+
+        def get_tasks(action):
+            result = list()
+            for step in self.steps:
+                if step.action == action:
+                    result.append(step.name)  # JSON serializable type
+            return result
+
         data = {
-            'add': self.get_by_action('spawn'),
-            'remove': self.get_by_action('destroy')
+            'add': get_tasks('spawn'),
+            'remove': get_tasks('destroy')
         }
         return json.dumps(data)
 
