@@ -154,7 +154,7 @@ class Plan(object):
         cwd = os.path.dirname(os.path.realpath(__file__))
         p = Popen([script], cwd=cwd, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=False)
         # pass the data
-        p.stdin.write(str(data))
+        p.stdin.write(bytes(data))
         p.stdin.close()
 
     def get_external_script_payload(self):
