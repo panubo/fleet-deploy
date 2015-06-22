@@ -19,7 +19,7 @@ class TestPlan(unittest.TestCase):
         self.assertEqual(len(self.plan.steps), 2)
 
     def test_execute_external_script(self):
-        self.plan.steps.append(Step('/usr/bin/env', 'external_script'))
+        self.plan.steps.append(Step('./tests/atomic.sh', 'external_script'))
         self.plan.execute(0)
 
 if __name__ == '__main__':
