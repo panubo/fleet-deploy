@@ -194,7 +194,7 @@ class BaseDeployment(object):
 
     @property
     def full_service_name(self):
-        return "%s-%s@" % (self.service_name, self.tag)
+        return "%s-%s" % (self.service_name, self.tag)
 
     def load(self, instances):
         """ Run logic and API calls to setup Units """
