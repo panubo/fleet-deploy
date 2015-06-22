@@ -161,9 +161,9 @@ class Plan(object):
             return result
 
         data = {
-            'service': self.service_name,
-            'add': get_tasks('spawn'),
-            'remove': get_tasks('destroy')
+            'service_name': self.service_name,
+            'units_added': get_tasks('spawn'),
+            'units_removed': get_tasks('destroy')
         }
         return json.dumps(data)
 
