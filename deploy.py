@@ -2,6 +2,7 @@
 
 from time import sleep
 import math
+import json
 from subprocess import Popen, PIPE
 
 import click
@@ -155,10 +156,11 @@ class Plan(object):
         p.stdin.close()
 
     def get_external_script_payload(self):
-        return {
+        data = {
             'add': self.get_by_action('spawn'),
             'remove': self.get_by_action('destroy')
         }
+        return json.dumps(data)
 
 
 class BaseDeployment(object):
