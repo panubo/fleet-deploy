@@ -75,8 +75,9 @@ class Step(object):
 class Plan(object):
     """ Collection of deployment steps and execution methods """
 
-    def __init__(self, fleet_client, unit_template):
+    def __init__(self, fleet_client, service_name, unit_template):
         self.fleet = fleet_client
+        self.service_name = service_name
         self.unit_template = unit_template
         self.steps = OrderedSet()
 
@@ -160,6 +161,7 @@ class Plan(object):
             return result
 
         data = {
+            'service': self.service_name,
             'add': get_tasks('spawn'),
             'remove': get_tasks('destroy')
         }
@@ -176,10 +178,23 @@ class BaseDeployment(object):
         self.service_name = service_name
         self.tag = tag
 
-        self.plans = list() # Plan(fleet_client=fleet_client, unit_template=None)
+        self.plans = list()
         self.units = OrderedSet()
         self.chunking_count = 1  # default
         self.unit_template = None
+        self.desired_units = 0
+
+    @property
+    def current_unit_count(self):
+        return len(self.units)
+
+    @property
+    def unit_count_difference(self):
+        return self.desired_units - self.current_unit_count
+
+    @property
+    def full_service_name(self):
+        return "%s-%s@" % (self.service_name, self.tag)
 
     def load(self, instances):
         """ Run logic and API calls to setup Units """
@@ -207,14 +222,14 @@ class BaseDeployment(object):
         spawn = list()
         while i < self.unit_count_difference:
             i += 1
-            spawn.append(Instance(self.get_service_name(self.current_unit_count+i), 'uncreated', 'spawn'))
+            spawn.append(Instance(self.get_unit_name(self.current_unit_count+i), 'uncreated', 'spawn'))
         for s in spawn:
             self.units.append(s)
 
         if self.current_unit_count == 0:
             raise Exception('No units found')
 
-    def get_service_name(self, idx):
+    def get_unit_name(self, idx):
         return "%s-%s@%s.service" % (self.service_name, self.tag, idx)
 
     def update_chunking(self, chunking, chunking_percent):
@@ -233,18 +248,10 @@ class BaseDeployment(object):
         if chunking > self.current_unit_count:
             raise click.UsageError('--chunking cannot be greater than --instances.')
 
-    @property
-    def current_unit_count(self):
-        return len(self.units)
-
-    @property
-    def unit_count_difference(self):
-        return self.desired_units - self.current_unit_count
-
     def create_plans(self):
         i = 0
         while i < self.current_unit_count:
-            plan = Plan(self.fleet, self.unit_template)
+            plan = Plan(self.fleet, self.full_service_name, self.unit_template)
             from_idx = i
             to_idx = i + self.chunking_count
             if to_idx > self.current_unit_count:
@@ -334,7 +341,7 @@ class AtomicRollingDeployment(BaseDeployment):
         idx = from_idx + 1
         for unit in self.units[from_idx:to_idx]:
             if unit.required_action in ('spawn', 'redeploy'):
-                name = self.get_service_name(idx)
+                name = self.get_unit_name(idx)
                 steps.append(Step(name, 'spawn'))
             idx += 1
 
@@ -350,7 +357,7 @@ class AtomicRollingDeployment(BaseDeployment):
 
         i = 0
         while i < self.current_unit_count:
-            plan = Plan(self.fleet, self.unit_template)
+            plan = Plan(self.fleet, self.full_service_name, self.unit_template)
             from_idx = i
             to_idx = i + self.chunking_count
             if to_idx > self.current_unit_count:

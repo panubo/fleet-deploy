@@ -7,8 +7,9 @@ class TestPlan(unittest.TestCase):
 
     def setUp(self):
         fleet_client = object()
+        service_name = 'test-service'
         unit_template = ''
-        self.plan = Plan(fleet_client, unit_template)
+        self.plan = Plan(fleet_client, service_name, unit_template)
 
     def test_str(self):
         self.assertEqual(self.plan.__str__(), 'Plan 0')
