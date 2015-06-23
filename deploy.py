@@ -148,7 +148,7 @@ class Plan(object):
     def execute_external_script(script, data):
         # run the script as a subprocess:
         cwd = os.path.dirname(os.path.realpath(__file__))
-        p = Popen([script], cwd=cwd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, shell=False)
+        p = Popen([script], cwd=cwd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, shell=False, env=os.environ.copy())
         # pass the data
         stdout, stderr = p.communicate(input=data.encode('utf-8'))
         return stdout
