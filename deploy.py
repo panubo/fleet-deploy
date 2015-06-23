@@ -4,7 +4,7 @@ from time import sleep
 import math
 import os
 import json
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, STDOUT
 
 import click
 import fleet.v1 as fleet
@@ -18,6 +18,7 @@ except ImportError:
     from httplib import ResponseNotReady
 
 FLEET_ENDPOINT_DEFAULT = 'http+unix://%2Fvar%2Frun%2Ffleet.sock'
+TIMEOUT = 30
 
 
 class FleetConnection(object):
@@ -140,16 +141,17 @@ class Plan(object):
             click.echo("Executing %s with data: " % step.name, nl=False)
             data = self.get_external_script_payload()
             click.echo(data)
-            self.execute_external_script(step.name, data)
+            result = self.execute_external_script(step.name, data)
+            click.echo("Result %s" % result)
 
     @staticmethod
     def execute_external_script(script, data):
         # run the script as a subprocess:
         cwd = os.path.dirname(os.path.realpath(__file__))
-        p = Popen([script], cwd=cwd, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=False)
+        p = Popen([script], cwd=cwd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, shell=False)
         # pass the data
-        p.stdin.write(data.encode('utf-8'))
-        p.stdin.close()
+        stdout, stderr = p.communicate(input=data.encode('utf-8'))
+        return stdout
 
     def get_external_script_payload(self):
 
