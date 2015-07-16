@@ -76,9 +76,10 @@ class Step(object):
 class Plan(object):
     """ Collection of deployment steps and execution methods """
 
-    def __init__(self, fleet_client, service_name, unit_template):
+    def __init__(self, fleet_client, service_name, full_service_name, unit_template):
         self.fleet = fleet_client
         self.service_name = service_name
+        self.full_service_name = full_service_name
         self.unit_template = unit_template
         self.steps = OrderedSet()
 
@@ -164,6 +165,7 @@ class Plan(object):
 
         data = {
             'service_name': self.service_name,
+            'deployment_name': self.full_service_name,
             'units_added': get_tasks('spawn'),
             'units_removed': get_tasks('destroy')
         }
@@ -253,7 +255,7 @@ class BaseDeployment(object):
     def create_plans(self):
         i = 0
         while i < self.current_unit_count:
-            plan = Plan(self.fleet, self.full_service_name, self.unit_template)
+            plan = Plan(self.fleet, self.service_name, self.full_service_name, self.unit_template)
             from_idx = i
             to_idx = i + self.chunking_count
             if to_idx > self.current_unit_count:
@@ -359,7 +361,7 @@ class AtomicRollingDeployment(BaseDeployment):
 
         i = 0
         while i < self.current_unit_count:
-            plan = Plan(self.fleet, self.full_service_name, self.unit_template)
+            plan = Plan(self.fleet, self.service_name, self.full_service_name, self.unit_template)
             from_idx = i
             to_idx = i + self.chunking_count
             if to_idx > self.current_unit_count:
