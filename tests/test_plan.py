@@ -13,7 +13,7 @@ class TestPlan(unittest.TestCase):
         self.plan = Plan(fleet_client, service_name, full_service_name, unit_template)
 
     def test_str(self):
-        self.assertEqual(self.plan.__str__(), 'Plan 0')
+        self.assertEqual(self.plan.__str__(), '<Plan Object (0 steps)>')
 
     def test_add_steps(self):
         self.plan.steps.append(Step('foo', 'destroy'))
