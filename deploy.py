@@ -31,7 +31,7 @@ class FleetConnection(object):
             raise SystemExit('Unable to connect to Fleet: {0}'.format(e))
 
 
-class Instance(object):
+class Unit(object):
     """ Unit Instance """
 
     def __init__(self, name, state, required_action='redeploy'):
@@ -206,7 +206,7 @@ class BaseDeployment(object):
         for u in self.fleet.list_units():
             if u['name'].startswith(self.service_name + '-'):
                 if u['name'] != "%s@.service" % self.service_name:  # Exclude service templates
-                    unit = Instance(u['name'], u['currentState'])
+                    unit = Unit(u['name'], u['currentState'])
                     self.units.append(unit)
 
         if instances is None:
@@ -226,7 +226,7 @@ class BaseDeployment(object):
         spawn = list()
         while i < self.unit_count_difference:
             i += 1
-            spawn.append(Instance(self.get_unit_name(self.current_unit_count+i), 'uncreated', 'spawn'))
+            spawn.append(Unit(self.get_unit_name(self.current_unit_count+i), 'uncreated', 'spawn'))
         for s in spawn:
             self.units.append(s)
 

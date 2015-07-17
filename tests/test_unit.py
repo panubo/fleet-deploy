@@ -1,12 +1,12 @@
 import unittest
 
-from deploy import Instance
+from deploy import Unit
 
 
-class TestInstance(unittest.TestCase):
+class TestUnit(unittest.TestCase):
 
     def test_create(self):
-        i = Instance('foo', 'inactive', 'spawn')
+        i = Unit('foo', 'inactive', 'spawn')
 
         self.assertEqual(i.__str__(), 'foo')
         self.assertEqual(i.name, 'foo')
@@ -16,11 +16,11 @@ class TestInstance(unittest.TestCase):
 
     def test_invalid_state(self):
         with self.assertRaises(Exception):
-            i = Instance('foo', 'xxxx', 'spawn')
+            i = Unit('foo', 'xxxx', 'spawn')
 
     def test_invalid_action(self):
         with self.assertRaises(Exception):
-            i = Instance('foo', 'inactive', 'xxx')
+            i = Unit('foo', 'inactive', 'xxx')
 
 if __name__ == '__main__':
     unittest.main()
