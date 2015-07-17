@@ -202,18 +202,19 @@ class BaseDeployment(object):
 
     def load(self, instances):
         """ Run logic and API calls to setup Units """
+        if instances is None:
+            # assume desired is current state
+            self.desired_units = self.current_unit_count
+        else:
+            self.desired_units = instances
+
+        # Load unit state from cluster, set desired instances.
         # find relevant units that exist in the cluster
         for u in self.fleet.list_units():
             if u['name'].startswith(self.service_name + '-'):
                 if u['name'] != "%s@.service" % self.service_name:  # Exclude service templates
                     unit = Unit(u['name'], u['currentState'])
                     self.units.append(unit)
-
-        if instances is None:
-            # assume desired is current state
-            self.desired_units = self.current_unit_count
-        else:
-            self.desired_units = instances
 
         # mark excess units for destruction
         i = 0
