@@ -182,16 +182,16 @@ class BaseDeployment(object):
         self.service_name = service_name
         self.tag = tag
 
-        if unit_file is None:
-            self.load_unit_template()
-        else:
-            self.set_unit_template(unit_file.read())
-
         self.plans = list()
         self.units = OrderedSet()
         self.chunking_count = 1  # default
-        self.unit_template = None
         self.desired_units = 0
+
+        if unit_file is None:
+            # load service template from fleet
+            self.unit_template = self.fleet.get_unit("%s@.service" % self.service_name)
+        else:
+            self.unit_template = unit_file.read()
 
     def __str__(self):
         return "<Base Deployment Object: (%s plans) (%s units)>" % (len(self.plans), len(self.units))
@@ -313,15 +313,6 @@ class BaseDeployment(object):
         for plan in self.plans:
             plan.run()
         click.echo("Finished.")
-
-    def load_unit_template(self):
-        # load service template from fleet
-        self.unit_template = self.fleet.get_unit("%s@.service" % self.service_name)
-        return self.unit_template
-
-    def set_unit_template(self, template):
-        self.unit_template = template
-        return self.unit_template
 
 
 class SimpleDeployment(BaseDeployment):
