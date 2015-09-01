@@ -39,7 +39,7 @@ class Unit(object):
         self.state = state
         self.required_action = required_action
 
-        if state not in ('inactive', 'launched', 'uncreated'):
+        if state not in ('inactive', 'launched', 'dead', 'uncreated'):
             raise Exception('Invalid state')
 
         if required_action not in ('redeploy', 'spawn', 'destroy'):
