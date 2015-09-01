@@ -39,11 +39,11 @@ class Unit(object):
         self.state = state
         self.required_action = required_action
 
-        if state not in ('inactive', 'launched', 'dead', 'uncreated'):
-            raise Exception('Invalid state')
+        if state not in ('inactive', 'launched', 'dead', 'uncreated', '-'):
+            raise Exception("Invalid state: %s" % state)
 
         if required_action not in ('redeploy', 'spawn', 'destroy'):
-            raise Exception('Invalid required_action')
+            raise Exception("Invalid required_action: %s" % required_action)
 
     def __str__(self):
         return self.name
