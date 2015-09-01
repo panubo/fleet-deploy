@@ -84,7 +84,7 @@ class Plan(object):
         self.steps = OrderedSet()
 
     def __str__(self):
-        return "Plan %s" % len(self.steps)
+        return "<Plan Object (%s steps)>" % len(self.steps)
 
     def run(self):
         click.echo("==> Executing")
@@ -176,7 +176,7 @@ class BaseDeployment(object):
 
     name = 'Base Deployment'
 
-    def __init__(self, fleet_client, service_name, tag):
+    def __init__(self, fleet_client, service_name, tag, unit_file=None):
 
         self.fleet = fleet_client
         self.service_name = service_name
@@ -185,8 +185,16 @@ class BaseDeployment(object):
         self.plans = list()
         self.units = OrderedSet()
         self.chunking_count = 1  # default
-        self.unit_template = None
         self.desired_units = 0
+
+        if unit_file is None:
+            # load service template from fleet
+            self.unit_template = self.fleet.get_unit("%s@.service" % self.service_name)
+        else:
+            self.unit_template = unit_file.read()
+
+    def __str__(self):
+        return "<Base Deployment Object: (%s plans) (%s units)>" % (len(self.plans), len(self.units))
 
     @property
     def current_unit_count(self):
@@ -281,37 +289,30 @@ class BaseDeployment(object):
         #     click.echo("Insufficient units found. %s will be spawned." % self.unit_count_difference)
         # if self.unit_count_difference < 0:
         #     click.echo("Excess units found. %s will be destroyed." % abs(self.unit_count_difference))
+        output = list()
 
-        click.echo("*** %s Deployment Plan ***" % self.name)
+        output.append("*** %s Deployment Plan ***" % self.name)
 
-        click.echo("==> Details")
+        output.append("==> Details")
         for u in self.units:
-            click.echo("Unit: %s (%s)." % (u.name, u.state))
-        click.echo("Chunking: %s units" % self.chunking_count)
+            output.append("Unit: %s (%s)." % (u.name, u.state))
+        output.append("Chunking: %s units" % self.chunking_count)
 
-        click.echo("==> Deployment Plan")
+        output.append("==> Deployment Plan")
         stage_idx = 1
         step_idx = 1
         for plan in self.plans:
-            click.echo("==> Stage %s" % stage_idx)
+            output.append("==> Stage %s" % stage_idx)
             stage_idx += 1
             for step in plan.steps:
-                click.echo("Step %s: %s" % (step_idx, step))
+                output.append("Step %s: %s" % (step_idx, step))
                 step_idx += 1
+        return output
 
     def run_plans(self):
         for plan in self.plans:
             plan.run()
         click.echo("Finished.")
-
-    def load_unit_template(self):
-        # load service template from fleet
-        self.unit_template = self.fleet.get_unit("%s@.service" % self.service_name)
-        return self.unit_template
-
-    def set_unit_template(self, template):
-        self.unit_template = template
-        return self.unit_template
 
 
 class SimpleDeployment(BaseDeployment):
@@ -422,17 +423,15 @@ def main(fleet_endpoint, name, tag, method, instances, unit_file, atomic_handler
     connection = FleetConnection(fleet_endpoint)
     method_obj = deployment_map[method]
     if method == 'atomic':
-        deployment = method_obj(atomic_handler, connection, name, tag)
+        deployment = method_obj(atomic_handler, connection, name, tag, unit_file)
     else:
-        deployment = method_obj(connection, name, tag)
+        deployment = method_obj(connection, name, tag, unit_file)
     deployment.load(instances)
-    if unit_file is None:
-        deployment.load_unit_template()
-    else:
-        deployment.set_unit_template(unit_file.read())
+
     deployment.update_chunking(chunking, chunking_percent)
     deployment.create_plans()
-    deployment.describe_plans()  # Print planned execution
+    for line in deployment.describe_plans():
+        click.echo(line)  # Print planned execution
 
     # Give chance to abort
     click.echo("==> Run")
